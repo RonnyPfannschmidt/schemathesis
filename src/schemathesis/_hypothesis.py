@@ -128,7 +128,12 @@ def get_case_strategy(endpoint: Endpoint) -> st.SearchStrategy:
     Path & endpoint are static, the others are JSON schemas.
     """
     strategies = {}
-    static_kwargs = {"path": endpoint.path, "method": endpoint.method, "base_url": endpoint.base_url}
+    static_kwargs = {
+        "path": endpoint.path,
+        "method": endpoint.method,
+        "base_url": endpoint.base_url,
+        "wsgi_client": endpoint.wsgi_client,
+    }
     try:
         for parameter in PARAMETERS:
             value = getattr(endpoint, parameter)

@@ -19,6 +19,7 @@ import hypothesis
 import jsonschema
 import yaml
 from requests.structures import CaseInsensitiveDict
+from werkzeug import Client
 
 from schemathesis.exceptions import InvalidSchema
 from schemathesis.models import empty_object
@@ -45,6 +46,7 @@ class BaseSchema(Mapping):
     method: Optional[Filter] = attr.ib(default=None)  # pragma: no mutate
     endpoint: Optional[Filter] = attr.ib(default=None)  # pragma: no mutate
     tag: Optional[Filter] = attr.ib(default=None)  # pragma: no mutate
+    wsgi_client: Optional[Client] = attr.ib(default=None)  # pragma: no mutate
 
     def __iter__(self) -> Iterator:
         return iter(self.endpoints)
@@ -164,7 +166,13 @@ class SwaggerV20(BaseSchema):
         base_url = self.base_url
         if base_url is not None:
             base_url = base_url.rstrip("/")  # pragma: no mutate
-        endpoint = Endpoint(path=full_path, method=method.upper(), definition=definition, base_url=base_url)
+        endpoint = Endpoint(
+            path=full_path,
+            method=method.upper(),
+            definition=definition,
+            base_url=base_url,
+            wsgi_client=self.wsgi_client,
+        )
         for parameter in parameters:
             self.process_parameter(endpoint, parameter)
         return endpoint

@@ -7,9 +7,11 @@ from urllib.parse import urljoin
 import attr
 import requests
 from hypothesis.searchstrategy import SearchStrategy
+from werkzeug import Client
 
 from .exceptions import InvalidSchema
 from .types import Body, Cookies, FormData, Headers, PathParameters, Query
+from .utils import WSGIResponse
 
 if TYPE_CHECKING:
     from .schemas import BaseSchema
@@ -28,6 +30,7 @@ class Case:
     query: Query = attr.ib(default=None)  # pragma: no mutate
     body: Optional[Body] = attr.ib(default=None)  # pragma: no mutate
     form_data: FormData = attr.ib(default=None)  # pragma: no mutate
+    wsgi_client: Optional[Client] = attr.ib(default=None)  # pragma: no mutate
 
     @property
     def formatted_path(self) -> str:
@@ -87,6 +90,21 @@ class Case:
             **extra,
         }
 
+    def as_werkzeug_kwargs(self) -> Dict[str, Any]:
+        extra: Dict[str, Optional[Dict]]
+        if self.form_data:
+            extra = {"data": self.form_data}
+        else:
+            extra = {"json": self.body}
+        # TODO. handle cookies.
+        return {
+            "method": self.method,
+            "path": self.formatted_path,
+            "headers": self.headers,
+            "query_string": self.query,
+            **extra,
+        }
+
     def call(
         self, base_url: Optional[str] = None, session: Optional[requests.Session] = None, **kwargs: Any
     ) -> requests.Response:
@@ -102,6 +120,16 @@ class Case:
         response = session.request(**data, **kwargs)  # type: ignore
         if close_session:
             session.close()
+        return response
+
+    def wsgi_call(self, **kwargs: Any) -> WSGIResponse:
+        if self.wsgi_client is None:
+            # TODO. refactor. separate classes might be better
+            # Or at least a concept of "Client" that will convert case to own kwargs and make a call.
+            # I.e WSGIClient vs RequestsClient
+            raise RuntimeError("Can't use WSGI client - no app specified")
+        data = self.as_werkzeug_kwargs()
+        response = self.wsgi_client.open(**data, **kwargs)
         return response
 
 
@@ -123,6 +151,7 @@ class Endpoint:
     query: Query = attr.ib(default=None)  # pragma: no mutate
     body: Body = attr.ib(default=None)  # pragma: no mutate
     form_data: FormData = attr.ib(default=None)  # pragma: no mutate
+    wsgi_client: Optional[Client] = attr.ib(default=None)  # pragma: no mutate
 
     def as_strategy(self) -> SearchStrategy:
         from ._hypothesis import get_case_strategy  # pylint: disable=import-outside-toplevel

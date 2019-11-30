@@ -10,6 +10,7 @@ Added
 ~~~~~
 
 - Concurrent test execution in CLI / runner. `#91`_
+- WSGI apps support. `#31`_
 
 `0.18.1`_ - 2019-11-28
 ----------------------
@@ -548,6 +549,7 @@ Fixed
 .. _#40: https://github.com/kiwicom/schemathesis/issues/40
 .. _#35: https://github.com/kiwicom/schemathesis/issues/35
 .. _#34: https://github.com/kiwicom/schemathesis/issues/34
+.. _#31: https://github.com/kiwicom/schemathesis/issues/31
 .. _#30: https://github.com/kiwicom/schemathesis/issues/30
 .. _#29: https://github.com/kiwicom/schemathesis/issues/29
 .. _#28: https://github.com/kiwicom/schemathesis/issues/28

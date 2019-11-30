@@ -4,12 +4,13 @@ from typing import IO, Any, Dict, Optional, Union
 
 import requests
 import yaml
+from werkzeug.test import Client
 
 from .constants import USER_AGENT
 from .lazy import LazySchema
 from .schemas import BaseSchema, OpenApi30, SwaggerV20
 from .types import Filter, PathLike
-from .utils import NOT_SET, StringDatesYAMLLoader, deprecated, get_base_url
+from .utils import NOT_SET, StringDatesYAMLLoader, WSGIResponse, deprecated, get_base_url
 
 
 def from_path(
@@ -50,13 +51,16 @@ def from_file(
     method: Optional[Filter] = None,
     endpoint: Optional[Filter] = None,
     tag: Optional[Filter] = None,
+    wsgi_client: Optional[Client] = None,
 ) -> BaseSchema:
     """Load a file content and parse to schema instance.
 
     `file` could be a file descriptor, string or bytes.
     """
     raw = yaml.load(file, StringDatesYAMLLoader)
-    return from_dict(raw, location=location, base_url=base_url, method=method, endpoint=endpoint, tag=tag)
+    return from_dict(
+        raw, location=location, base_url=base_url, method=method, endpoint=endpoint, tag=tag, wsgi_client=wsgi_client
+    )
 
 
 def from_dict(
@@ -66,13 +70,30 @@ def from_dict(
     method: Optional[Filter] = None,
     endpoint: Optional[Filter] = None,
     tag: Optional[Filter] = None,
+    wsgi_client: Optional[Client] = None,
 ) -> BaseSchema:
     """Get a proper abstraction for the given raw schema."""
     if "swagger" in raw_schema:
-        return SwaggerV20(raw_schema, location=location, base_url=base_url, method=method, endpoint=endpoint, tag=tag)
+        return SwaggerV20(
+            raw_schema,
+            location=location,
+            base_url=base_url,
+            method=method,
+            endpoint=endpoint,
+            tag=tag,
+            wsgi_client=wsgi_client,
+        )
 
     if "openapi" in raw_schema:
-        return OpenApi30(raw_schema, location=location, base_url=base_url, method=method, endpoint=endpoint, tag=tag)
+        return OpenApi30(
+            raw_schema,
+            location=location,
+            base_url=base_url,
+            method=method,
+            endpoint=endpoint,
+            tag=tag,
+            wsgi_client=wsgi_client,
+        )
     raise ValueError("Unsupported schema type")
 
 
@@ -84,6 +105,12 @@ def from_pytest_fixture(
 ) -> LazySchema:
     """Needed for a consistent library API."""
     return LazySchema(fixture_name, method=method, endpoint=endpoint, tag=tag)
+
+
+def from_wsgi(app: Any, schema_path: str) -> BaseSchema:
+    client = Client(app, WSGIResponse)
+    response = client.get(schema_path)
+    return from_file(response.data, wsgi_client=client)
 
 
 # Backward compatibility
